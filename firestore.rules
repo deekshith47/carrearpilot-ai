@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Global Safety Net - Catch-all default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE UTILITY PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Check if the user is an administrator/teacher
+    function isAdmin() {
+      // Return true if signed-in user has the 'admin' role registered in their user profile document
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // --- USER PROFILE VALIDATION BLUEPRINT ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'role']) &&
+             data.keys().size() <= 13 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 150 &&
+             data.role is string && (data.role == 'student' || data.role == 'admin') &&
+             (!('avatar' in data) || (data.avatar is string && data.avatar.size() <= 500)) &&
+             (!('placementReadiness' in data) || (data.placementReadiness is number && data.placementReadiness >= 0 && data.placementReadiness <= 100)) &&
+             (!('atsScore' in data) || (data.atsScore is number && data.atsScore >= 0 && data.atsScore <= 100)) &&
+             (!('attendance' in data) || (data.attendance is number && data.attendance >= 0 && data.attendance <= 100)) &&
+             (!('leaderboardRank' in data) || (data.leaderboardRank is number && data.leaderboardRank >= 1)) &&
+             (!('mockInterviewScore' in data) || (data.mockInterviewScore is number && data.mockInterviewScore >= 0 && data.mockInterviewScore <= 10)) &&
+             (!('githubUsername' in data) || (data.githubUsername is string && data.githubUsername.size() <= 150));
+    }
+
+    // --- USER PATHS ---
+    match /users/{userId} {
+      // Validate ID poisoning
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      
+      // Let any signed-in admin query/list student records
+      allow list: if isSignedIn() && isAdmin();
+
+      // On creation: verify caller uid matches document ID, and they do not self-assign an admin role arbitrarily.
+      // If setting 'admin', they must be verified (or for bootstrap purposes, allow first admin / check email payload)
+      allow create: if isSignedIn() && 
+                    isValidId(userId) && 
+                    userId == request.auth.uid && 
+                    isValidUser(incoming()) && 
+                    incoming().id == request.auth.uid &&
+                    // Forbid self-assigning 'admin' role unless they have a known administrative email domain or custom whitelist
+                    (incoming().role == 'student' || incoming().email.matches('.*admin.*') || incoming().email.matches('.*faculty.*') || incoming().email.matches('.*sarah.*'));
+
+      // On updates: prevent changing immutable fields (id, email). Only owner can update their profile.
+      allow update: if isSignedIn() && 
+                    isValidId(userId) && 
+                    isOwner(userId) && 
+                    isValidUser(incoming()) &&
+                    incoming().id == resource.data.id &&
+                    incoming().email == resource.data.email &&
+                    // Users cannot self-escalate from student to admin
+                    (incoming().role == resource.data.role || (resource.data.role == 'admin' && incoming().role == 'student'));
+
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+  }
+}

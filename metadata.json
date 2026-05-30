@@ -1,0 +1,12 @@
+{
+  "name": "Remix: Remix: Remix: Remix: CareerPilot OS",
+  "description": "An AI-powered Career Operating System for Students with Career Twin, ATS Resume Scanner, and Skill DNA mapping.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

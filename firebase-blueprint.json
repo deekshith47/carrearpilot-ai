@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account schema including roles and student readiness metrics",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firebase Authentication User UID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the user"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Authentication email address"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["student", "admin"],
+          "description": "Access level of the user"
+        },
+        "avatar": {
+          "type": "string",
+          "description": "Profile picture URL"
+        },
+        "placementReadiness": {
+          "type": "number",
+          "description": "Placement readiness percentage score (students only)"
+        },
+        "atsScore": {
+          "type": "number",
+          "description": "ATS score benchmark (students only)"
+        },
+        "attendance": {
+          "type": "number",
+          "description": "Attendance percentage tracker (students only)"
+        },
+        "leaderboardRank": {
+          "type": "number",
+          "description": "Leaderboard position (students only)"
+        },
+        "mockInterviewScore": {
+          "type": "number",
+          "description": "Mock interview ratings out of 10 (students only)"
+        },
+        "githubUsername": {
+          "type": "string",
+          "description": "Connected GitHub profile name"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last edit timestamp"
+        }
+      },
+      "required": ["id", "name", "email", "role"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles database"
+    }
+  }
+}
